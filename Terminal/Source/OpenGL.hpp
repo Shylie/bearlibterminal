@@ -23,20 +23,7 @@
 #ifndef BEARLIBTERMINAL_OPENGL_HPP
 #define BEARLIBTERMINAL_OPENGL_HPP
 
-// Windows requires inclusion of windows.h since gl.h depends on it
-// Also, gl.h in windows is a bit outdated
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <GL/gl.h>
-#undef LoadBitmap // There is a function with same name in WinAPI
-// OpenGL 1.2+
-#define GL_BGRA 0x80E1
-#elif defined(__linux)
-#include <GL/gl.h>
-#elif defined(__APPLE__)
-#include <OpenGL/gl.h>
-#endif
+#include "glad/glad.h"
 
 namespace BearLibTerminal
 {

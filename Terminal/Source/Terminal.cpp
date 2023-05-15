@@ -187,6 +187,59 @@ namespace BearLibTerminal
 		return result;
 	}
 
+	static constexpr const char* VERTEX_SHADER =
+		R"(#version 330 core
+layout (location = 0) in vec4 color_in;
+layout (location = 1) in vec2 position_in;
+layout (location = 2) in vec2 uv_in;
+
+out vec4 vertex_color;
+out vec2 vertex_uv;
+
+uniform mat4 transform;
+
+void main()
+{
+	gl_Position = transform * vec4(position_in, 0.5f, 1.0f);
+	vertex_uv = uv_in;
+	vertex_color = color_in;
+})";
+
+	static constexpr const char* FRAGMENT_SHADER =
+		R"(#version 330 core
+out vec4 FragColor;
+
+in vec4 vertex_color;
+in vec2 vertex_uv;
+
+uniform sampler2D tex;
+
+void main()
+{
+	FragColor = vertex_color * texture(tex, vertex_uv);
+})";
+
+	static uint32_t CompileShaders()
+	{
+		unsigned int vertex_shader = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertex_shader, 1, &VERTEX_SHADER, nullptr);
+		glCompileShader(vertex_shader);
+
+		unsigned int fragment_shader = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragment_shader, 1, &FRAGMENT_SHADER, nullptr);
+		glCompileShader(fragment_shader);
+
+		unsigned int shader_program = glCreateProgram();
+		glAttachShader(shader_program, vertex_shader);
+		glAttachShader(shader_program, fragment_shader);
+		glLinkProgram(shader_program);
+
+		glDeleteShader(vertex_shader);
+		glDeleteShader(fragment_shader);
+
+		return shader_program;
+	}
+
 	Terminal::Terminal():
 		m_state{kHidden},
 		m_show_grid{false},
@@ -216,6 +269,31 @@ namespace BearLibTerminal
 
 		// Try to create window
 		m_window = Window::Create(std::bind(&Terminal::OnWindowEvent, this, std::placeholders::_1));
+
+		m_vertex_buffer = std::make_unique<StreamBuffer>(65536 * sizeof(Vertex), GL_ARRAY_BUFFER);
+		m_index_buffer = std::make_unique<StreamBuffer>(262144 * sizeof(unsigned int), GL_ELEMENT_ARRAY_BUFFER);
+
+		m_shader_program = CompileShaders();
+
+		glGenVertexArrays(1, &m_vao);
+
+		glBindVertexArray(m_vao);
+
+		m_vertex_buffer->Bind();
+		m_index_buffer->Bind();
+
+		glVertexAttribPointer(0, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), (void*)offsetof(Vertex, color));
+		glEnableVertexAttribArray(0);
+
+		glVertexAttribPointer(1, 2, GL_INT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+		glEnableVertexAttribArray(1);
+
+		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texture_coords));
+		glEnableVertexAttribArray(2);
+
+		glBindVertexArray(0);
+
+		m_global_texture = std::unique_ptr<Texture>(new Texture(Bitmap(Size(1, 1), 0xFFFFFFFF)));
 
 		// Default parameters
 		SetOptionsInternal(L"window: size=80x25, icon=default; font: default; terminal.encoding=utf8; input.filter={keyboard}");
@@ -249,6 +327,9 @@ namespace BearLibTerminal
 		g_codespace.clear();
 		g_tilesets.clear();
 		g_atlas.Clear();
+
+		glDeleteVertexArrays(1, &m_vao);
+		glDeleteProgram(m_shader_program);
 
 		// Window will be disposed of automatically.
 	}
@@ -1669,6 +1750,21 @@ namespace BearLibTerminal
 		return false;
 	}
 
+	void Terminal::FlushStreamDraw(size_t v_written, size_t i_written)
+	{
+		m_vertex_buffer->Unmap(v_written);
+		m_index_buffer->Unmap(i_written);
+
+		glUseProgram(m_shader_program);
+
+		glBindVertexArray(m_vao);
+		glDrawElements(GL_TRIANGLES, m_index_buffer->Count<unsigned int>(), GL_UNSIGNED_INT, 0);
+		glBindVertexArray(0);
+
+		m_vertex_buffer->Orphan();
+		m_index_buffer->Orphan();
+	}
+
 	int Terminal::HasInput()
 	{
 		CHECK_THREAD("has_input", 0);
@@ -1930,20 +2026,28 @@ namespace BearLibTerminal
 		glDisable(GL_DEPTH_TEST);
 		glClearColor(0, 0, 0, 1);
 		glViewport(0, 0, viewport_size.width, viewport_size.height);
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho
-		(
-			-m_stage_area.left * m_stage_area_factor.width,
-			(viewport_size.width - m_stage_area.left) * m_stage_area_factor.width,
-			(viewport_size.height - m_stage_area.top) * m_stage_area_factor.height,
-			-m_stage_area.top * m_stage_area_factor.height,
-			-1,
-			+1
-		);
 
-		glMatrixMode(GL_MODELVIEW);
-		glLoadIdentity();
+		const float left = -m_stage_area.left * m_stage_area_factor.width;
+		const float right = (viewport_size.width - m_stage_area.left) * m_stage_area_factor.width;
+		const float bottom = (viewport_size.height - m_stage_area.top) * m_stage_area_factor.height;
+		const float top = -m_stage_area.top * m_stage_area_factor.height;
+
+		const float tx = -(right + left) / (right - left);
+		const float ty = -(top + bottom) / (top - bottom);
+		const float tz = 0;
+
+		const float transform[16] =
+		{
+			2.0f / (right - left), 0.0f, 0.0f, 0.0f,
+			0.0f, 2.0f / (top - bottom), 0.0f, 0.0f,
+			0.0f, 0.0f, -1.0f, 0.0f,
+			tx, ty, tz, 1.0f
+		};
+
+		const int transform_location = glGetUniformLocation(m_shader_program, "transform");
+		glUseProgram(m_shader_program);
+		glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform);
+
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1961,7 +2065,7 @@ namespace BearLibTerminal
 		m_window->SetVSync(m_options.output_vsync);
 	}
 
-	void DrawTile(const Leaf& leaf, const TileInfo& tile, int x, int y, int w2, int h2)
+	void Terminal::DrawTile(const Leaf& leaf, const TileInfo& tile, int x, int y, int w2, int h2, StreamBuffer::MapInfo vmap, size_t& voff, StreamBuffer::MapInfo imap, size_t& ioff)
 	{
 		// TODO: Think up of some optimization?
 		// There are a lot of calculations done.
@@ -2032,6 +2136,7 @@ namespace BearLibTerminal
 			int cg = (leaf.color[0].g + leaf.color[1].g + leaf.color[2].g + leaf.color[3].g)/4;
 			int cb = (leaf.color[0].b + leaf.color[1].b + leaf.color[2].b + leaf.color[3].b)/4;
 			int ca = (leaf.color[0].a + leaf.color[1].a + leaf.color[2].a + leaf.color[3].a)/4;
+			Color cc(ca, cb, cg, cr);
 			// Center texture coords
 			float cu = (tile.texture_coords.tu1 + tile.texture_coords.tu2)/2.0f;
 			float cv = (tile.texture_coords.tv1 + tile.texture_coords.tv2)/2.0f;
@@ -2039,63 +2144,109 @@ namespace BearLibTerminal
 			float cx = (left + right)/2.0f;
 			float cy = (top + bottom)/2.0f;
 
-			// First quad
-			// Top-left
-			glColor4ub(leaf.color[0].r, leaf.color[0].g, leaf.color[0].b, leaf.color[0].a);
-			glTexCoord2f(tile.texture_coords.tu1, tile.texture_coords.tv1);
-			glVertex2i(left, top);
-			// Bottom-left
-			glColor4ub(leaf.color[1].r, leaf.color[1].g, leaf.color[1].b, leaf.color[1].a);
-			glTexCoord2f(tile.texture_coords.tu1, tile.texture_coords.tv2);
-			glVertex2i(left, bottom);
-			// Center
-			glColor4ub(cr, cg, cb, ca);
-			glTexCoord2f(cu, cv);
-			glVertex2i(cx, cy);
-			// Top-right
-			glColor4ub(leaf.color[3].r, leaf.color[3].g, leaf.color[3].b, leaf.color[3].a);
-			glTexCoord2f(tile.texture_coords.tu2, tile.texture_coords.tv1);
-			glVertex2i(right, top);
+			// Swap red and blue, vertex shader expects RGBA
+			const Color c0(leaf.color[0].a, leaf.color[0].b, leaf.color[0].g, leaf.color[0].r);
+			const Color c1(leaf.color[1].a, leaf.color[1].b, leaf.color[1].g, leaf.color[1].r);
+			const Color c2(leaf.color[2].a, leaf.color[2].b, leaf.color[2].g, leaf.color[2].r);
+			const Color c3(leaf.color[3].a, leaf.color[3].b, leaf.color[3].g, leaf.color[3].r);
 
-			// Second squad
-			// Bottom-right
-			glColor4ub(leaf.color[2].r, leaf.color[2].g, leaf.color[2].b, leaf.color[2].a);
-			glTexCoord2f(tile.texture_coords.tu2, tile.texture_coords.tv2);
-			glVertex2i(right, bottom);
-			// Top-right
-			glColor4ub(leaf.color[3].r, leaf.color[3].g, leaf.color[3].b, leaf.color[3].a);
-			glTexCoord2f(tile.texture_coords.tu2, tile.texture_coords.tv1);
-			glVertex2i(right, top);
-			// Center
-			glColor4ub(cr, cg, cb, ca);
-			glTexCoord2f(cu, cv);
-			glVertex2i(cx, cy);
-			// Bottom-left
-			glColor4ub(leaf.color[1].r, leaf.color[1].g, leaf.color[1].b, leaf.color[1].a);
-			glTexCoord2f(tile.texture_coords.tu1, tile.texture_coords.tv2);
-			glVertex2i(left, bottom);
-			//*/
+			const Vertex top_left{ c0, { left, top }, { tile.texture_coords.tu1, tile.texture_coords.tv1 } };
+			const Vertex bottom_left{ c1, { left, bottom }, { tile.texture_coords.tu1, tile.texture_coords.tv2 } };
+			const Vertex center{ cc, { cx, cy }, { cu, cv } };
+			const Vertex top_right{ c2, { right, top }, { tile.texture_coords.tu2, tile.texture_coords.tv1 } };
+			const Vertex bottom_right{ c3, { right, bottom }, { tile.texture_coords.tu2, tile.texture_coords.tv2 } };
+
+			const Vertex vs[5] = { top_left, bottom_left, center, top_right, bottom_right };
+
+			/*
+			* 
+			* 0---3
+			* |\ /|
+			* | 2 |
+			* |/ \|
+			* 1---4
+			* 
+			*/
+
+			const unsigned int begin = voff / sizeof(Vertex) + m_vertex_buffer->Count<Vertex>();
+			const unsigned int is[12] =
+			{
+				// Left triangle
+				begin + 0, begin + 1, begin + 2,
+
+				// Top triangle
+				begin + 0, begin + 2, begin + 3,
+
+				// Right triangle
+				begin + 2, begin + 4, begin + 3,
+
+				// Bottom triangle
+				begin + 1, begin + 4, begin + 2
+			};
+
+			if (vmap.size - voff < sizeof(vs) || imap.size - ioff < sizeof(is))
+			{
+				FlushStreamDraw(voff, ioff);
+				vmap = m_vertex_buffer->Map();
+				imap = m_index_buffer->Map();
+
+				voff = 0;
+				ioff = 0;
+			}
+
+			memcpy(&vmap.data[voff], vs, sizeof(vs));
+			memcpy(&imap.data[ioff], is, sizeof(is));
+
+			voff += sizeof(vs);
+			ioff += sizeof(is);
 		}
 		else
 		{
-			// Single-colored version
-			glColor4ub(leaf.color[0].r, leaf.color[0].g, leaf.color[0].b, leaf.color[0].a);
+			// Swap red and blue, vertex shader expects RGBA
+			const Color c0(leaf.color[0].a, leaf.color[0].b, leaf.color[0].g, leaf.color[0].r);
 
-			// Top-left
-			glTexCoord2f(tile.texture_coords.tu1, tile.texture_coords.tv1);
-			glVertex2i(left, top);
+			const Vertex top_left{ c0, { left, top }, { tile.texture_coords.tu1, tile.texture_coords.tv1 } };
+			const Vertex bottom_left{ c0, { left, bottom }, { tile.texture_coords.tu1, tile.texture_coords.tv2 } };
+			const Vertex top_right{ c0, { right, top }, { tile.texture_coords.tu2, tile.texture_coords.tv1 } };
+			const Vertex bottom_right{ c0, { right, bottom }, { tile.texture_coords.tu2, tile.texture_coords.tv2 } };
 
-			// Bottom-left
-			glTexCoord2f(tile.texture_coords.tu1, tile.texture_coords.tv2);
-			glVertex2i(left, bottom);
+			const Vertex vs[4] = { top_left, bottom_left, top_right, bottom_right };
 
-			// Bottom-right
-			glTexCoord2f(tile.texture_coords.tu2, tile.texture_coords.tv2);
-			glVertex2i(right, bottom);
+			/*
+			* 
+			* 0---2
+			* |  /|
+			* | / |
+			* |/  |
+			* 1---3
+			* 
+			*/
 
-			// Top-right
-			glTexCoord2f(tile.texture_coords.tu2, tile.texture_coords.tv1);
-			glVertex2i(right, top);
+			const unsigned int begin = voff / sizeof(Vertex) + m_vertex_buffer->Count<Vertex>();
+			const unsigned int is[6] =
+			{
+				// Top left triangle
+				begin + 0, begin + 1, begin + 2,
+
+				// Bottom left triangle
+				begin + 1, begin + 3, begin + 2
+			};
+
+			if (vmap.size - voff < sizeof(vs) || imap.size - ioff < sizeof(is))
+			{
+				FlushStreamDraw(voff, ioff);
+				vmap = m_vertex_buffer->Map();
+				imap = m_index_buffer->Map();
+
+				voff = 0;
+				ioff = 0;
+			}
+
+			memcpy(&vmap.data[voff], vs, sizeof(vs));
+			memcpy(&imap.data[ioff], is, sizeof(is));
+
+			voff += sizeof(vs);
+			ioff += sizeof(is);
 		}
 	}
 
@@ -2118,9 +2269,13 @@ namespace BearLibTerminal
 			glScissor(scissors.left, scissors.top, scissors.width, scissors.height);
 		}
 
+		StreamBuffer::MapInfo vmap = m_vertex_buffer->Map();
+		StreamBuffer::MapInfo imap = m_index_buffer->Map();
+		size_t voff = 0;
+		size_t ioff = 0;
+
 		// Backgrounds
-		Texture::Disable();
-		glBegin(GL_QUADS);
+		m_global_texture->Bind();
 		{
 			int i = 0, left = 0, top = 0;
 			int w = m_world.state.cellsize.width;
@@ -2132,11 +2287,41 @@ namespace BearLibTerminal
 					Color& c = m_world.stage.frontbuffer.background[i];
 					if (c.a > 0)
 					{
-						glColor4ub(c.r, c.g, c.b, c.a);
-						glVertex2i(left+0, top+0);
-						glVertex2i(left+0, top+h);
-						glVertex2i(left+w, top+h);
-						glVertex2i(left+w, top+0);
+						// Swap red and blue, vertex shader expects RGBA
+						const Color c0(c.a, c.b, c.g, c.r);
+
+						const Vertex top_left{ c0, { left, top }, { 0, 0 } };
+						const Vertex bottom_left{ c0, { left, top + h }, { 0, 1 } };
+						const Vertex top_right{ c0, { left + w, top }, { 1, 0 } };
+						const Vertex bottom_right{ c0, { left + w, top + h }, { 1, 1 } };
+
+						const Vertex vs[4] = { top_left, bottom_left, top_right, bottom_right };
+
+						const unsigned int begin = voff / sizeof(Vertex) + m_vertex_buffer->Count<Vertex>();
+						const unsigned int is[6] =
+						{
+							// Top left triangle
+							begin + 0, begin + 1, begin + 2,
+
+							// Bottom right triangle
+							begin + 1, begin + 3, begin + 2
+						};
+
+						if (vmap.size - voff < sizeof(vs) || imap.size - ioff < sizeof(is))
+						{
+							FlushStreamDraw(voff, ioff);
+							vmap = m_vertex_buffer->Map();
+							imap = m_index_buffer->Map();
+
+							voff = 0;
+							ioff = 0;
+						}
+
+						memcpy(&vmap.data[voff], vs, sizeof(vs));
+						memcpy(&imap.data[ioff], is, sizeof(is));
+
+						voff += sizeof(vs);
+						ioff += sizeof(is);
 					}
 
 					i += 1;
@@ -2147,9 +2332,13 @@ namespace BearLibTerminal
 				top += h;
 			}
 		}
-		glEnd();
 
-		Texture::Enable();
+		FlushStreamDraw(voff, ioff);
+		vmap = m_vertex_buffer->Map();
+		imap = m_index_buffer->Map();
+
+		voff = 0;
+		ioff = 0;
 
 		int w2 = m_world.state.half_cellsize.width;
 		int h2 = m_world.state.half_cellsize.height;
@@ -2158,8 +2347,6 @@ namespace BearLibTerminal
 		AtlasTexture* current_texture = nullptr;
 		auto replacement_tile = GetTileInfo(kUnicodeReplacementCharacter);
 
-		glBegin(GL_QUADS);
-		glColor4f(1, 1, 1, 1);
 		for (auto& layer: m_world.stage.frontbuffer.layers)
 		{
 			if (layer.crop.Area() > 0)
@@ -2168,10 +2355,15 @@ namespace BearLibTerminal
 				scissors.top = m_viewport_scissors.height - (scissors.top+scissors.height);
 				scissors += m_viewport_scissors.Location();
 
-				glEnd();
+				FlushStreamDraw(voff, ioff);
+				vmap = m_vertex_buffer->Map();
+				imap = m_index_buffer->Map();
+
+				voff = 0;
+				ioff = 0;
+
 				glEnable(GL_SCISSOR_TEST);
 				glScissor(scissors.left, scissors.top, scissors.width, scissors.height);
-				glBegin(GL_QUADS);
 
 				layer_scissors_applied = true;
 			}
@@ -2189,13 +2381,18 @@ namespace BearLibTerminal
 
 						if (tile->texture != current_texture)
 						{
-							glEnd();
+							FlushStreamDraw(voff, ioff);
+							vmap = m_vertex_buffer->Map();
+							imap = m_index_buffer->Map();
+
+							voff = 0;
+							ioff = 0;
+
 							tile->texture->Bind();
 							current_texture = tile->texture;
-							glBegin(GL_QUADS);
 						}
 
-						DrawTile(leaf, *tile, left, top, w2, h2);
+						DrawTile(leaf, *tile, left, top, w2, h2, vmap, voff, imap, ioff);
 					}
 
 					i += 1;
@@ -2208,15 +2405,22 @@ namespace BearLibTerminal
 
 			if (layer_scissors_applied)
 			{
-				glEnd();
 				auto& scissors = m_viewport_scissors;
 				glScissor(scissors.left, scissors.top, scissors.width, scissors.height);
-				glBegin(GL_QUADS);
 				layer_scissors_applied = false;
 			}
 		}
-		glEnd();
 
+		FlushStreamDraw(voff, ioff);
+		vmap = m_vertex_buffer->Map();
+		imap = m_index_buffer->Map();
+
+		voff = 0;
+		ioff = 0;
+
+		// NOTE: show grid setting is currently unsupported
+
+		/*
 		if (m_show_grid)
 		{
 			int width = m_world.stage.size.width * m_world.state.cellsize.width;
@@ -2243,6 +2447,7 @@ namespace BearLibTerminal
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_TEXTURE_2D);
 		}
+		*/
 
 		return 1;
 	}

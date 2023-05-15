@@ -609,6 +609,8 @@ namespace BearLibTerminal
 			DestroyOpenGLContext();
 			return false;
 		}
+		gladLoadGL();
+
 		ProbeOpenGL();
 
 		m_wglSwapIntervalEXT.Load((void*)wglGetProcAddress("wglSwapIntervalEXT"));

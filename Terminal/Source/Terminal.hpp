@@ -30,6 +30,7 @@
 #include "Encoding.hpp"
 #include "OptionGroup.hpp"
 #include "Log.hpp"
+#include "StreamBuffer.hpp"
 #include <deque>
 #include <array>
 #include <thread>
@@ -80,11 +81,13 @@ namespace BearLibTerminal
 		void ConsumeEvent(Event& event);
 		Event ReadEvent(int timeout);
 		void Render();
+		void DrawTile(const Leaf& leaf, const TileInfo& tile, int x, int y, int w2, int h2, StreamBuffer::MapInfo vmap, size_t& voff, StreamBuffer::MapInfo imap, size_t& ioff);
 		int Redraw();
 		int OnWindowEvent(Event event);
 		void PushEvent(Event event);
 		bool IsEventFiltered(int code);
 		bool HasFilteredInput();
+		void FlushStreamDraw(size_t v_written, size_t i_written);
 	private:
 		enum state_t {kHidden, kVisible, kClosed} m_state;
 		std::thread::id m_main_thread_id;
@@ -104,6 +107,11 @@ namespace BearLibTerminal
 		Rectangle m_stage_area;
 		SizeF m_stage_area_factor;
 		bool m_alt_pressed; // For alt-functions interception.
+		std::unique_ptr<StreamBuffer> m_vertex_buffer;
+		std::unique_ptr<StreamBuffer> m_index_buffer;
+		uint32_t m_vao;
+		uint32_t m_shader_program;
+		std::unique_ptr<Texture> m_global_texture;
 
 		struct PutArrayTileLayout
 		{

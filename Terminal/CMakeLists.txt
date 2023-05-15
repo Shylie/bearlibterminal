@@ -27,12 +27,12 @@ else()
 endif()
 
 
-file(GLOB TERMINAL_HEADERS ./Source/*.hpp ./Source/*.h)
+file(GLOB TERMINAL_HEADERS ./Source/*.hpp ./Source/*.h ./Source/glad/glad.h ./Source/KHR/khrplatform.h)
 list(APPEND TERMINAL_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/Include/C/BearLibTerminal.h")
 if(APPLE)
-	file(GLOB TERMINAL_SOURCES ./Source/*.cpp ./Source/*.mm)
+	file(GLOB TERMINAL_SOURCES ./Source/*.cpp ./Source/glad.c ./Source/*.mm)
 else()
-	file(GLOB TERMINAL_SOURCES ./Source/*.cpp) # FIXME: manual selection
+	file(GLOB TERMINAL_SOURCES ./Source/*.cpp ./Source/glad.c) # FIXME: manual selection
 endif()
 
 # Release flags

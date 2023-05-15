@@ -417,6 +417,8 @@ namespace BearLibTerminal
         
         [m_impl->m_window setContentView:m_impl->m_view];
         [[m_impl->m_view openGLContext] makeCurrentContext];
+
+        gladLoadGL();
         
         ProbeOpenGL();
         

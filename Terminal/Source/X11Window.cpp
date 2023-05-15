@@ -396,6 +396,9 @@ namespace BearLibTerminal
 			throw std::runtime_error("[X11] failed to create GLX context");
 
 		AcquireRC();
+
+		gladLoadGL();
+
 		ProbeOpenGL();
 
 		// GLX-specific
