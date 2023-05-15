@@ -270,10 +270,11 @@ void main()
 		// Try to create window
 		m_window = Window::Create(std::bind(&Terminal::OnWindowEvent, this, std::placeholders::_1));
 
-		m_vertex_buffer = std::make_unique<StreamBuffer>(65536 * sizeof(Vertex), GL_ARRAY_BUFFER);
-		m_index_buffer = std::make_unique<StreamBuffer>(262144 * sizeof(unsigned int), GL_ELEMENT_ARRAY_BUFFER);
+		m_vertex_buffer = std::make_unique<StreamBuffer>(2048 * sizeof(Vertex), GL_ARRAY_BUFFER);
+		m_index_buffer = std::make_unique<StreamBuffer>(8192 * sizeof(unsigned int), GL_ELEMENT_ARRAY_BUFFER);
 
 		m_shader_program = CompileShaders();
+		glUseProgram(m_shader_program);
 
 		glGenVertexArrays(1, &m_vao);
 
@@ -290,8 +291,6 @@ void main()
 
 		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texture_coords));
 		glEnableVertexAttribArray(2);
-
-		glBindVertexArray(0);
 
 		m_global_texture = std::unique_ptr<Texture>(new Texture(Bitmap(Size(1, 1), 0xFFFFFFFF)));
 
@@ -1755,14 +1754,13 @@ void main()
 		m_vertex_buffer->Unmap(v_written);
 		m_index_buffer->Unmap(i_written);
 
-		glUseProgram(m_shader_program);
+		if (m_index_buffer->Count<unsigned int>() > 0)
+		{
+			glDrawElements(GL_TRIANGLES, m_index_buffer->Count<unsigned int>(), GL_UNSIGNED_INT, 0);
+		}
 
-		glBindVertexArray(m_vao);
-		glDrawElements(GL_TRIANGLES, m_index_buffer->Count<unsigned int>(), GL_UNSIGNED_INT, 0);
-		glBindVertexArray(0);
-
-		m_vertex_buffer->Orphan();
-		m_index_buffer->Orphan();
+		m_vertex_buffer->Reset();
+		m_index_buffer->Reset();
 	}
 
 	int Terminal::HasInput()
@@ -2184,7 +2182,7 @@ void main()
 				begin + 1, begin + 4, begin + 2
 			};
 
-			if (vmap.size - voff < sizeof(vs) || imap.size - ioff < sizeof(is))
+			if (vmap.size < voff + sizeof(vs) || imap.size < ioff + sizeof(is))
 			{
 				FlushStreamDraw(voff, ioff);
 				vmap = m_vertex_buffer->Map();
@@ -2232,7 +2230,7 @@ void main()
 				begin + 1, begin + 3, begin + 2
 			};
 
-			if (vmap.size - voff < sizeof(vs) || imap.size - ioff < sizeof(is))
+			if (vmap.size < voff + sizeof(vs) || imap.size < ioff + sizeof(is))
 			{
 				FlushStreamDraw(voff, ioff);
 				vmap = m_vertex_buffer->Map();
@@ -2307,7 +2305,7 @@ void main()
 							begin + 1, begin + 3, begin + 2
 						};
 
-						if (vmap.size - voff < sizeof(vs) || imap.size - ioff < sizeof(is))
+						if (vmap.size < voff + sizeof(vs) || imap.size < ioff + sizeof(is))
 						{
 							FlushStreamDraw(voff, ioff);
 							vmap = m_vertex_buffer->Map();

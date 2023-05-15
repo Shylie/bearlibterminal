@@ -8,8 +8,7 @@ namespace BearLibTerminal
 		m_type(type),
 		m_buffer_size(size),
 		m_gpu_read_offset(0),
-		m_data(new uint8_t[m_buffer_size]),
-		m_orphan(false)
+		m_data(new uint8_t[m_buffer_size])
 	{
 		glGenBuffers(1, &m_handle);
 		glBindBuffer(m_type, m_handle);
@@ -35,8 +34,7 @@ namespace BearLibTerminal
 		m_type(sb.m_type),
 		m_buffer_size(sb.m_buffer_size),
 		m_gpu_read_offset(sb.m_gpu_read_offset),
-		m_data(sb.m_data),
-		m_orphan(sb.m_orphan)
+		m_data(sb.m_data)
 	{
 		sb.m_handle = 0;
 		sb.m_data = nullptr;
@@ -50,7 +48,6 @@ namespace BearLibTerminal
 		m_type = sb.m_type;
 		m_buffer_size = sb.m_buffer_size;
 		m_gpu_read_offset = sb.m_gpu_read_offset;
-		m_orphan = sb.m_orphan;
 
 		return *this;
 	}
@@ -62,15 +59,6 @@ namespace BearLibTerminal
 
 	StreamBuffer::MapInfo StreamBuffer::Map()
 	{
-		if (m_orphan)
-		{
-			m_orphan = false;
-			m_gpu_read_offset = 0;
-
-			Bind();
-			glBufferData(m_type, m_buffer_size, nullptr, GL_STREAM_DRAW);
-		}
-
 		return { m_data + m_gpu_read_offset, GetUsableSize() };
 	}
 
@@ -82,9 +70,9 @@ namespace BearLibTerminal
 		m_gpu_read_offset += written;
 	}
 
-	void StreamBuffer::Orphan()
+	void StreamBuffer::Reset()
 	{
-		m_orphan = true;
+		m_gpu_read_offset = 0;
 	}
 
 	void StreamBuffer::Bind()

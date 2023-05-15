@@ -67,7 +67,7 @@ namespace BearLibTerminal
 		MapInfo Map();
 		void Unmap(size_t written);
 		
-		void Orphan();
+		void Reset();
 
 		template <typename T>
 		int Count() const
@@ -81,7 +81,6 @@ namespace BearLibTerminal
 		size_t m_buffer_size;
 		size_t m_gpu_read_offset;
 		uint8_t* m_data;
-		bool m_orphan;
 	};
 }
 
