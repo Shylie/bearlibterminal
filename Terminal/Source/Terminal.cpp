@@ -2145,16 +2145,16 @@ void main()
 			float cy = (top + bottom)/2.0f;
 
 			// Swap red and blue, vertex shader expects RGBA
-			const Color c0(leaf.color[0].a, leaf.color[0].b, leaf.color[0].g, leaf.color[0].r);
-			const Color c1(leaf.color[1].a, leaf.color[1].b, leaf.color[1].g, leaf.color[1].r);
-			const Color c2(leaf.color[2].a, leaf.color[2].b, leaf.color[2].g, leaf.color[2].r);
-			const Color c3(leaf.color[3].a, leaf.color[3].b, leaf.color[3].g, leaf.color[3].r);
+			const Color tlc(leaf.color[0].a, leaf.color[0].b, leaf.color[0].g, leaf.color[0].r);
+			const Color blc(leaf.color[1].a, leaf.color[1].b, leaf.color[1].g, leaf.color[1].r);
+			const Color trc(leaf.color[3].a, leaf.color[3].b, leaf.color[3].g, leaf.color[3].r);
+			const Color brc(leaf.color[2].a, leaf.color[2].b, leaf.color[2].g, leaf.color[2].r);
 
-			const Vertex top_left{ c0, { left, top }, { tile.texture_coords.tu1, tile.texture_coords.tv1 } };
-			const Vertex bottom_left{ c1, { left, bottom }, { tile.texture_coords.tu1, tile.texture_coords.tv2 } };
+			const Vertex top_left{ tlc, { left, top }, { tile.texture_coords.tu1, tile.texture_coords.tv1 } };
+			const Vertex bottom_left{ blc, { left, bottom }, { tile.texture_coords.tu1, tile.texture_coords.tv2 } };
 			const Vertex center{ cc, { cx, cy }, { cu, cv } };
-			const Vertex top_right{ c2, { right, top }, { tile.texture_coords.tu2, tile.texture_coords.tv1 } };
-			const Vertex bottom_right{ c3, { right, bottom }, { tile.texture_coords.tu2, tile.texture_coords.tv2 } };
+			const Vertex top_right{ trc, { right, top }, { tile.texture_coords.tu2, tile.texture_coords.tv1 } };
+			const Vertex bottom_right{ brc, { right, bottom }, { tile.texture_coords.tu2, tile.texture_coords.tv2 } };
 
 			const Vertex vs[5] = { top_left, bottom_left, center, top_right, bottom_right };
 
