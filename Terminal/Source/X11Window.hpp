@@ -67,9 +67,6 @@ namespace BearLibTerminal
 		bool m_client_resize;
 
 	private:
-		typedef void (*PFN_GLXSWAPINTERVALEXT)(Display *dpy, GLXDrawable drawable, int interval);
-		typedef int (*PFN_GLXSWAPINTERVALMESA)(int interval);
-
 		Display* m_display;
 		int m_screen;
 		::Window m_window;
@@ -90,8 +87,8 @@ namespace BearLibTerminal
 		Atom m_wm_compound_string;
 		XSizeHints* m_size_hints;
 		int m_keymaps[2][256]; // TODO: static
-		PFN_GLXSWAPINTERVALEXT m_glXSwapIntervalEXT;
-		PFN_GLXSWAPINTERVALMESA m_glXSwapIntervalMESA;
+		PFNGLXSWAPINTERVALEXTPROC m_glXSwapIntervalEXT;
+		PFNGLXSWAPINTERVALMESAPROC m_glXSwapIntervalMESA;
 		uint64_t m_expose_timer;
 	};
 }

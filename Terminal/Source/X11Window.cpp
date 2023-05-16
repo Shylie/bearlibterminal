@@ -402,17 +402,15 @@ namespace BearLibTerminal
 		ProbeOpenGL();
 
 		// GLX-specific
-		std::string extensions = glXQueryExtensionsString(m_display, m_screen);
-		LOG(Trace, "OpenGL: " << extensions.c_str());
-		if (extensions.find("GLX_EXT_swap_control") != std::string::npos)
+		if (GLAD_GLX_EXT_swap_control)
 		{
 			LOG(Trace, "OpenGL context has GLX_EXT_swap_control extension");
-			m_glXSwapIntervalEXT = (PFN_GLXSWAPINTERVALEXT)glXGetProcAddress((GLubyte*)"glXSwapIntervalEXT");
+			m_glXSwapIntervalEXT = glXSwapIntervalEXT;
 		}
-		else if (extensions.find("GLX_MESA_swap_control") != std::string::npos)
+		else if (GLAD_GLX_MESA_swap_control)
 		{
 			LOG(Trace, "OpenGL context has GLX_MESA_swap_control extension");
-			m_glXSwapIntervalMESA = (PFN_GLXSWAPINTERVALMESA)glXGetProcAddress((GLubyte*)"glXSwapIntervalMESA");
+			m_glXSwapIntervalMESA = glXSwapIntervalMESA;
 		}
 		SetVSync(true);
 

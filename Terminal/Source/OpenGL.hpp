@@ -23,11 +23,11 @@
 #ifndef BEARLIBTERMINAL_OPENGL_HPP
 #define BEARLIBTERMINAL_OPENGL_HPP
 
-#include <glad/gl.h>
-
 #ifdef __linux__
 #include <glad/glx.h>
-#endif // __linux__
+#else // __linux__
+#include <glad/gl.h>
+#endif // !__linux__
 
 namespace BearLibTerminal
 {
