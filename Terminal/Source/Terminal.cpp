@@ -2167,7 +2167,7 @@ void main()
 			*/
 
 			const unsigned int begin = voff / sizeof(Vertex) + m_vertex_buffer->Count<Vertex>();
-			const unsigned int is[12] =
+			unsigned int is[12] =
 			{
 				// Left triangle
 				begin + 0, begin + 1, begin + 2,
@@ -2190,6 +2190,11 @@ void main()
 
 				voff = 0;
 				ioff = 0;
+
+				for (int i = 0; i < sizeof(is) / sizeof(*is); i++)
+				{
+					is[i] -= begin;
+				}
 			}
 
 			memcpy(&vmap.data[voff], vs, sizeof(vs));
@@ -2221,7 +2226,7 @@ void main()
 			*/
 
 			const unsigned int begin = voff / sizeof(Vertex) + m_vertex_buffer->Count<Vertex>();
-			const unsigned int is[6] =
+			unsigned int is[6] =
 			{
 				// Top left triangle
 				begin + 0, begin + 1, begin + 2,
@@ -2238,6 +2243,11 @@ void main()
 
 				voff = 0;
 				ioff = 0;
+
+				for (int i = 0; i < sizeof(is) / sizeof(*is); i++)
+				{
+					is[i] -= begin;
+				}
 			}
 
 			memcpy(&vmap.data[voff], vs, sizeof(vs));
@@ -2296,7 +2306,7 @@ void main()
 						const Vertex vs[4] = { top_left, bottom_left, top_right, bottom_right };
 
 						const unsigned int begin = voff / sizeof(Vertex) + m_vertex_buffer->Count<Vertex>();
-						const unsigned int is[6] =
+						unsigned int is[6] =
 						{
 							// Top left triangle
 							begin + 0, begin + 1, begin + 2,
@@ -2313,6 +2323,11 @@ void main()
 
 							voff = 0;
 							ioff = 0;
+
+							for (int i = 0; i < sizeof(is) / sizeof(*is); i++)
+							{
+								is[i] -= begin;
+							}
 						}
 
 						memcpy(&vmap.data[voff], vs, sizeof(vs));

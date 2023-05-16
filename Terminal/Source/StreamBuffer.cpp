@@ -3,6 +3,8 @@
 
 namespace BearLibTerminal
 {
+	std::map<uint32_t, uint32_t> StreamBuffer::m_currently_bound_buffers;
+
 	StreamBuffer::StreamBuffer(size_t size, uint32_t type):
 		m_handle(0),
 		m_type(type),
@@ -77,6 +79,9 @@ namespace BearLibTerminal
 
 	void StreamBuffer::Bind()
 	{
-		glBindBuffer(m_type, m_handle);
+		if (m_currently_bound_buffers[m_type] != m_handle)
+		{
+			glBindBuffer(m_type, m_handle);
+		}
 	}
 }

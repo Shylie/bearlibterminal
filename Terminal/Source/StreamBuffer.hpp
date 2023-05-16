@@ -25,6 +25,7 @@
 
 #include "Color.hpp"
 #include "Atlas.hpp"
+#include <map>
 
 namespace BearLibTerminal
 {
@@ -81,6 +82,8 @@ namespace BearLibTerminal
 		size_t m_buffer_size;
 		size_t m_gpu_read_offset;
 		uint8_t* m_data;
+
+		static std::map<uint32_t, uint32_t> m_currently_bound_buffers;
 	};
 }
 
