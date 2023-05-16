@@ -20,6 +20,8 @@
 * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#define GLAD_GL_IMPLEMENTATION
+#define GLAD_GLX_IMPLEMENTATION
 #include "OpenGL.hpp"
 #include "Log.hpp"
 #include <string>

@@ -397,7 +397,7 @@ namespace BearLibTerminal
 
 		AcquireRC();
 
-		gladLoadGL();
+		gladLoaderLoadGL();
 
 		ProbeOpenGL();
 
@@ -485,6 +485,8 @@ namespace BearLibTerminal
 
 	void X11Window::Dispose()
 	{
+		gladLoaderUnloadGL();
+
 		if (m_ic != nullptr)
 			XDestroyIC(m_ic);
 

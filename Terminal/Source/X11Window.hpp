@@ -28,8 +28,8 @@
 #include <memory>
 #include "Window.hpp"
 #include "Point.hpp"
+#include "OpenGL.hpp"
 #include <X11/Xlib.h>
-#include <GL/glx.h>
 
 namespace BearLibTerminal
 {

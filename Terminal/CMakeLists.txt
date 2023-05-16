@@ -27,12 +27,14 @@ else()
 endif()
 
 
-file(GLOB TERMINAL_HEADERS ./Source/*.hpp ./Source/*.h ./Source/glad/glad.h ./Source/KHR/khrplatform.h)
+file(GLOB TERMINAL_HEADERS ./Source/*.hpp ./Source/*.h)
 list(APPEND TERMINAL_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/Include/C/BearLibTerminal.h")
+list(APPEND TERMINAL_HEADERS ./Source/glad/gl.h)
+list(APPEND TERMINAL_HEADERS ./Source/glad/glx.h)
 if(APPLE)
-	file(GLOB TERMINAL_SOURCES ./Source/*.cpp ./Source/glad.c ./Source/*.mm)
+	file(GLOB TERMINAL_SOURCES ./Source/*.cpp ./Source/*.mm)
 else()
-	file(GLOB TERMINAL_SOURCES ./Source/*.cpp ./Source/glad.c) # FIXME: manual selection
+	file(GLOB TERMINAL_SOURCES ./Source/*.cpp) # FIXME: manual selection
 endif()
 
 # Release flags
@@ -64,6 +66,7 @@ if (APPLE)
 endif()
 
 include_directories(./Include/C)
+include_directories(./Source)
 include_directories(./Dependencies/FreeType/Include)
 include_directories(./Dependencies/PicoPNG/Include)
 include_directories(./Dependencies/NanoJPEG/Include)

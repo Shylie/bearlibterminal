@@ -609,7 +609,7 @@ namespace BearLibTerminal
 			DestroyOpenGLContext();
 			return false;
 		}
-		gladLoadGL();
+		gladLoaderLoadGL();
 
 		ProbeOpenGL();
 
@@ -666,6 +666,8 @@ namespace BearLibTerminal
 
 	void WinApiWindow::DestroyOpenGLContext()
 	{
+		gladLoaderUnloadGL();
+
 		if ( m_rendering_context != nullptr )
 		{
 			ReleaseRC();
