@@ -74,6 +74,8 @@ if (NOT BUILD_SHARED_LIBS)
 
 	if(LINUX)
 		target_link_libraries(SampleOmni pthread)
+		target_link_libraries(SampleOmni dl)
+		target_link_libraries(SampleOmni X11)
 	elseif(APPLE)
 		target_link_libraries(SampleOmni ${COCOA_LIBRARY})
 	endif()

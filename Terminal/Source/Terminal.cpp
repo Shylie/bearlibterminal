@@ -28,6 +28,7 @@
 #include "Palette.hpp"
 #include "BearLibTerminal.h"
 #include <cmath>
+#include <cstring>
 #include <future>
 #include <vector>
 #include <locale.h>

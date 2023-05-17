@@ -342,6 +342,8 @@ namespace BearLibTerminal
 			throw std::runtime_error("[X11] failed to open a display");
 		m_screen = DefaultScreen(m_display);
 
+		gladLoaderLoadGLX(m_display, m_screen);
+
 		int glx_attrs[] =
 		{
 			GLX_RGBA,
@@ -495,6 +497,8 @@ namespace BearLibTerminal
 
 		if (m_glx != nullptr)
 			glXDestroyContext(m_display, m_glx);
+
+		gladLoaderUnloadGLX();
 
 		if (m_window != 0)
 			XDestroyWindow(m_display, m_window);
